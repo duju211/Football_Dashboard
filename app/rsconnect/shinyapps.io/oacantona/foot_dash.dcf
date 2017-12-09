@@ -1,0 +1,12 @@
+name: foot_dash
+title: foot_dash
+username:
+account: oacantona
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 222842
+bundleId: 1070459
+url: https://oacantona.shinyapps.io/foot_dash/
+when: 1510424404.47849
+asMultiple: FALSE
+asStatic: FALSE
