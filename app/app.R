@@ -13,7 +13,19 @@ df_elos <- elo_day() %>%
 
 df_elos_historic <- read_rds("elos.rds")
 
-df_competitions <- read_competitions(token) 
+df_competitions <- read_competitions(token) %>% 
+  mutate(
+    Country = case_when(
+      str_detect(caption, "Bundesliga") ~ "GER", 
+      str_detect(caption, "Brasileiro") ~ "BRA",
+      str_detect(caption, "(League)|(Championship)") ~ "ENG",
+      str_detect(caption, "Eredivisie") ~ "NED", 
+      str_detect(caption, "Ligue") ~ "FRA", 
+      TRUE ~ NA_character_), 
+    Level = case_when(
+      str_detect(caption, "(1\\s)|(1\\.)") ~ 1, 
+      str_detect(caption, "(2\\s)|(2\\.)") ~ 2, 
+      TRUE ~ NA_real_))
 
 # Definition of UI --------------------------------------------------------
 ui <- dashboardPage(
@@ -73,18 +85,19 @@ server <- function(input, output) {
     league_table(
       read_competition_table(token, id()) %>% 
         mutate(
-          picture = paste0("<img src='", crestURI, "' height='19'></img>")) %>% 
-        select(
-          picture, team, points, goals, goalsAgainst, goalDifference,
-          playedGames))
+          picture = paste0("<img src='", crestURI, "' height='19'></img>"))) 
   })
   
   output$league_table <- renderDataTable({
-    datatable(
-      league_table(), filter = "none", escape = FALSE, 
-      options = list(
-        pageLength = 50, 
-        columnDefs = list(list(className = 'dt-center', targets = 2))))
+    league_table() %>% 
+      select(
+        picture, team, points, goals, goalsAgainst, goalDifference,
+        playedGames) %>% 
+      datatable(
+        filter = "none", escape = FALSE, 
+        options = list(
+          pageLength = 50, 
+          columnDefs = list(list(className = 'dt-center', targets = 2))))
   })
   
   output$league_fixtures <- renderDataTable({
@@ -114,14 +127,21 @@ server <- function(input, output) {
   })
   
   output$league_elos <- renderPlot({
+    team_filter <- df_elos %>% 
+      filter(
+        Country == df_competitions$Country[df_competitions$id == id()], 
+        Level == df_competitions$Level[df_competitions$id == id()]) %>% 
+      pull(Club)
+    
     elo_plot <- df_elos_historic %>% 
       filter(
-        Club %in% league_table()$team, 
+        Club %in% team_filter,
         year(To) >= year(today() - dyears(2)), To < today()) %>% 
       ggplot(aes(x = To, y = Elo, color = Club)) +
         geom_line() +
         theme(legend.position = "bottom") +
-        labs(title = "Last 2 years of Elo developement")
+        labs(title = "Last 2 years of Elo developement") +
+        theme_bw()
   
     return(elo_plot)
   })
