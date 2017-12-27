@@ -62,30 +62,31 @@ ui <- dashboardPage(
 # Server Logic ------------------------------------------------------------
 server <- function(input, output) {
   # Reactive Values ---------------------------------------------------------
-  teams <- reactiveVal()
-  elos <- reactiveVal()
-  elos(tibble())
+  id <- reactiveVal()
+  league_table <- reactiveVal()
+  league_table(tibble())
+  
+  observeEvent(input$league, {
+    id(df_competitions$id[df_competitions$caption == input$league])
+    league_table(
+      read_competition_table(token, id()) %>% 
+        mutate(
+          picture = paste0("<img src='", crestURI, "' height='19'></img>")) %>% 
+        select(
+          picture, team, points, goals, goalsAgainst, goalDifference,
+          playedGames))
+  })
   
   output$league_table <- renderDataTable({
-    id <- df_competitions$id[df_competitions$caption == input$league]
-    league_table <- read_competition_table(token, id) %>% 
-      mutate(
-        picture = paste0("<img src='", crestURI, "' height='19'></img>")) %>% 
-      select(
-        picture, team, points, goals, goalsAgainst, goalDifference,
-        playedGames)
-    teams(league_table$team)
-    #elos(elo_club_multiple(league_table$team))
     datatable(
-      league_table, filter = "none", escape = FALSE, 
+      league_table(), filter = "none", escape = FALSE, 
       options = list(
         pageLength = 50, 
         columnDefs = list(list(className = 'dt-center', targets = 2))))
   })
   
   output$league_fixtures <- renderDataTable({
-    id <- df_competitions$id[df_competitions$caption == input$league]
-    league_fixtures <- read_fixtures(token, id) %>% 
+    league_fixtures <- read_fixtures(token, id()) %>% 
       mutate(
         score = paste0(result.goalsHomeTeam, ":", result.goalsAwayTeam)) %>% 
       gather(key = "home_away", value = "team_id", homeTeamId, awayTeamId) %>% 
@@ -111,10 +112,12 @@ server <- function(input, output) {
   })
   
   output$league_elos <- renderPlot({
-    elo_plot <- elos() %>% 
-      filter(To > today() - dyears(1)) %>% 
-      ggplot(aes(x = To, y = Elo, color = Club)) +
-        geom_line()
+    elo_plot <- df_elo_dict %>%
+      filter(Club %in% league_table()$team) %>% 
+      left_join(df_elos) %>% 
+      arrange(desc(Elo)) %>% 
+      ggplot(aes(x = fct_inorder(Club), y = Elo)) +
+        geom_col()
     
     return(elo_plot)
   })
