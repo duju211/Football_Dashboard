@@ -11,6 +11,8 @@ token <- read_lines("token.txt")
 df_elos <- elo_day() %>% 
   left_join(df_elo_dict[,c("Club", "id")], by = "Club")
 
+df_elos_historic <- read_rds("elos.rds")
+
 df_competitions <- read_competitions(token) 
 
 # Definition of UI --------------------------------------------------------
@@ -53,7 +55,7 @@ ui <- dashboardPage(
       ), 
       tabItem(
         tabName = "elos", 
-        plotOutput("league_elos")
+        plotOutput("league_elos", height = "900px")
       )
     )
   )
@@ -112,13 +114,15 @@ server <- function(input, output) {
   })
   
   output$league_elos <- renderPlot({
-    elo_plot <- df_elo_dict %>%
-      filter(Club %in% league_table()$team) %>% 
-      left_join(df_elos) %>% 
-      arrange(desc(Elo)) %>% 
-      ggplot(aes(x = fct_inorder(Club), y = Elo)) +
-        geom_col()
-    
+    elo_plot <- df_elos_historic %>% 
+      filter(
+        Club %in% league_table()$team, 
+        year(To) >= year(today() - dyears(2)), To < today()) %>% 
+      ggplot(aes(x = To, y = Elo, color = Club)) +
+        geom_line() +
+        theme(legend.position = "bottom") +
+        labs(title = "Last 2 years of Elo developement")
+  
     return(elo_plot)
   })
 }
