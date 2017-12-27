@@ -75,7 +75,7 @@ server <- function(input, output) {
         picture, team, points, goals, goalsAgainst, goalDifference,
         playedGames)
     teams(league_table$team)
-    elos(elo_club_multiple(league_table$team))
+    #elos(elo_club_multiple(league_table$team))
     datatable(
       league_table, filter = "none", escape = FALSE, 
       options = list(
