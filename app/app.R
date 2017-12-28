@@ -20,12 +20,17 @@ df_competitions <- read_competitions(token) %>%
       str_detect(caption, "Brasileiro") ~ "BRA",
       str_detect(caption, "(League)|(Championship)") ~ "ENG",
       str_detect(caption, "Eredivisie") ~ "NED", 
-      str_detect(caption, "Ligue") ~ "FRA", 
+      str_detect(caption, "Ligue") ~ "FRA",
+      str_detect(caption, "Serie") ~ "ITA", 
+      str_detect(caption, "Division") ~ "ESP", 
+      str_detect(caption, "\\sLiga") ~ "POR",
       TRUE ~ NA_character_), 
     Level = case_when(
-      str_detect(caption, "(1\\s)|(1\\.)") ~ 1, 
-      str_detect(caption, "(2\\s)|(2\\.)") ~ 2, 
-      TRUE ~ NA_real_))
+      str_detect(caption, "(1\\s)|(1\\.)|(^Pr)|(\\sA)") ~ 1, 
+      str_detect(caption, "(2\\s)|(2\\.)|(Championship)|(\\sB)") ~ 2, 
+      str_detect(caption, "One") ~ 3,
+      str_detect(caption, "Two") ~ 4,
+      TRUE ~ 1))
 
 # Definition of UI --------------------------------------------------------
 ui <- dashboardPage(
@@ -131,11 +136,12 @@ server <- function(input, output) {
       filter(
         Country == df_competitions$Country[df_competitions$id == id()], 
         Level == df_competitions$Level[df_competitions$id == id()]) %>% 
-      pull(Club)
+      select(Club)
     
-    elo_plot <- df_elos_historic %>% 
+    elo_plot <- team_filter %>% 
+      left_join(df_elos_historic, by = "Club") %>% 
+      mutate(Club = fct_inorder(Club)) %>% 
       filter(
-        Club %in% team_filter,
         year(To) >= year(today() - dyears(2)), To < today()) %>% 
       ggplot(aes(x = To, y = Elo, color = Club)) +
         geom_line() +
